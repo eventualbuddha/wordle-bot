@@ -1,5 +1,5 @@
 import words from "an-array-of-english-words";
-import chalk from 'chalk';
+import chalk from "chalk";
 import { execSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
@@ -129,7 +129,7 @@ export function createOracleFromTurn([guess, clue]: Turn): (
 }
 
 export async function main(args: readonly string[]) {
-	const columns = parseInt(execSync('tput cols', { encoding: 'utf8' }).trim());
+	const columns = parseInt(execSync("tput cols", { encoding: "utf8" }).trim());
 	const input = await readFile(args[0], "utf8");
 	const lines = input.split("\n");
 	const turns: Turn[] = [];
@@ -138,22 +138,30 @@ export async function main(args: readonly string[]) {
 		const [guess, clue] = line.split(" ");
 		turns.push([guess.toLowerCase(), clue]);
 		if (guess.length !== WORD_LENGTH) {
-			throw new Error(`Invalid guess "${guess}": ${guess} (length ${guess.length})`);
+			throw new Error(
+				`Invalid guess "${guess}": ${guess} (length ${guess.length})`,
+			);
 		}
 
 		if (clue.length !== WORD_LENGTH * 2) {
-			throw new Error(`Invalid clue for guess "${guess}": ${clue} (length ${clue.length})`);
+			throw new Error(
+				`Invalid clue for guess "${guess}": ${clue} (length ${clue.length})`,
+			);
 		}
 	}
 
 	let candidates = CANDIDATES.slice();
 	for (const [guessIndex, [guess, clue]] of turns.entries()) {
-		process.stdout.write(`${chalk.bold(`Turn #${guessIndex + 2}:`)} after "${chalk.italic(guess.toUpperCase())}" ${clue}\n`);
+		process.stdout.write(
+			`${chalk.bold(`Turn #${guessIndex + 2}:`)} after "${chalk.italic(
+				guess.toUpperCase(),
+			)}" ${clue}\n`,
+		);
 
 		const ask = createOracleFromTurn([guess, clue]);
 		candidates = candidates.filter((candidate) => ask(candidate).possible);
 
-		let line = '';
+		let line = "";
 		for (const candidate of candidates) {
 			if (line.length + candidate.length === columns) {
 				process.stdout.write(`${line}${candidate.toUpperCase()}\n`);
