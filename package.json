@@ -1,0 +1,15 @@
+{
+  "name": "wordle-test",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "bun-types": "^0.4.0",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "an-array-of-english-words": "^2.0.0",
+    "chalk": "^5.2.0",
+    "rome": "^12.0.0"
+  }
+}
