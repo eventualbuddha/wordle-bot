@@ -5,6 +5,9 @@ import { readFile } from "node:fs/promises";
 
 const WORD_LENGTH = 5;
 const CANDIDATES = words.filter((word) => word.length === WORD_LENGTH);
+const GREEN_CHAR = "🟩";
+const YELLOW_CHAR = "🟨";
+const GRAY_CHAR = "⬜️";
 
 type Turn = [string, string];
 
@@ -33,21 +36,21 @@ function ordinal(n: number): string {
 function clueCharAtIndex(clue: string, charIndex: number) {
 	let byteIndex = 0;
 	for (let i = 0; i < WORD_LENGTH; i++) {
-		if (clue.slice(byteIndex, byteIndex + "🟩".length) === "🟩") {
+		if (clue.slice(byteIndex, byteIndex + GREEN_CHAR.length) === GREEN_CHAR) {
 			if (i === charIndex) {
-				return "🟩";
+				return GREEN_CHAR;
 			}
-			byteIndex += "🟩".length;
-		} else if (clue.slice(byteIndex, byteIndex + "🟨".length) === "🟨") {
+			byteIndex += GREEN_CHAR.length;
+		} else if (clue.slice(byteIndex, byteIndex + YELLOW_CHAR.length) === YELLOW_CHAR) {
 			if (i === charIndex) {
-				return "🟨";
+				return YELLOW_CHAR;
 			}
-			byteIndex += "🟨".length;
-		} else if (clue.slice(byteIndex, byteIndex + "⬜️".length) === "⬜️") {
+			byteIndex += YELLOW_CHAR.length;
+		} else if (clue.slice(byteIndex, byteIndex + GRAY_CHAR.length) === GRAY_CHAR) {
 			if (i === charIndex) {
-				return "⬜️";
+				return GRAY_CHAR;
 			}
-			byteIndex += "⬜️".length;
+			byteIndex += GRAY_CHAR.length;
 		} else {
 			throw new Error(
 				`Invalid clue character: ${clue[i]} (at clue index ${i}, byte index ${byteIndex})`,
@@ -79,9 +82,9 @@ export function createOracleFromTurn([guess, clue]: Turn): (
 
 		const reasons: string[] = [];
 
-		const greens = clues.filter(({ clueChar }) => clueChar === "🟩");
-		const yellows = clues.filter(({ clueChar }) => clueChar === "🟨");
-		const grays = clues.filter(({ clueChar }) => clueChar === "⬜️");
+		const greens = clues.filter(({ clueChar }) => clueChar === GREEN_CHAR);
+		const yellows = clues.filter(({ clueChar }) => clueChar === YELLOW_CHAR);
+		const grays = clues.filter(({ clueChar }) => clueChar === GRAY_CHAR);
 
 		// try to falsify the candidate
 		char: for (const [index, candidateChar] of candidate.split("").entries()) {
@@ -129,8 +132,34 @@ export function createOracleFromTurn([guess, clue]: Turn): (
 }
 
 export async function main(args: readonly string[]) {
+	let printPossibleWords = false;
+	let guessFile: string | undefined;
+
+	for (let i = 0; i < args.length; i++) {
+		switch (args[i]) {
+			case "-w":
+			case "--words": {
+				printPossibleWords = true;
+				break;
+			}
+			default: {
+				if (args[i].startsWith("-")) {
+					throw new Error(`Invalid option: ${args[i]}`);
+				} else if (guessFile) {
+					throw new Error(`Invalid argument: ${args[i]}`);
+				} else {
+					guessFile = args[i];
+				}
+			}
+		}
+	}
+
+	if (!guessFile) {
+		throw new Error("Missing guess file");
+	}
+
 	const columns = parseInt(execSync("tput cols", { encoding: "utf8" }).trim());
-	const input = await readFile(args[0], "utf8");
+	const input = await readFile(guessFile, "utf8");
 	const lines = input.split("\n");
 	const turns: Turn[] = [];
 
@@ -152,29 +181,45 @@ export async function main(args: readonly string[]) {
 
 	let candidates = CANDIDATES.slice();
 	for (const [guessIndex, [guess, clue]] of turns.entries()) {
-		process.stdout.write(
-			`${chalk.bold(`Turn #${guessIndex + 2}:`)} after "${chalk.italic(
-				guess.toUpperCase(),
-			)}" ${clue}\n`,
-		);
-
 		const ask = createOracleFromTurn([guess, clue]);
 		candidates = candidates.filter((candidate) => ask(candidate).possible);
 
-		let line = "";
-		for (const candidate of candidates) {
-			if (line.length + candidate.length === columns) {
-				process.stdout.write(`${line}${candidate.toUpperCase()}\n`);
-			} else if (line.length + candidate.length > columns) {
-				process.stdout.write(`${line}\n`);
-				line = `${candidate.toUpperCase()} `;
-			} else {
-				line += `${candidate.toUpperCase()} `;
-			}
+		if (clue === GREEN_CHAR.repeat(WORD_LENGTH)) {
+			process.stdout.write(
+				`${chalk.bold('Solved!')} "${chalk.italic(guess.toUpperCase())}"\n`
+			);
+			break;
 		}
 
-		if (line.length) {
-			process.stdout.write(`${line}\n`);
+		process.stdout.write(
+			`${chalk.bold(`Turn #${guessIndex + 2}:`)} after "${chalk.italic(
+				guess.toUpperCase(),
+			)}" ${clue} ${chalk.dim(
+				`(${candidates.length} ${candidates.length === 1 ? "word" : "words"
+				} left)`,
+			)}\n`,
+		);
+
+		if (printPossibleWords) {
+			let line = "";
+			for (const candidate of candidates) {
+				if (line.length + candidate.length === columns) {
+					process.stdout.write(`${line}${candidate.toUpperCase()}\n`);
+				} else if (line.length + candidate.length > columns) {
+					process.stdout.write(`${line}\n`);
+					line = `${candidate.toUpperCase()} `;
+				} else {
+					line += `${candidate.toUpperCase()} `;
+				}
+			}
+
+			if (line.length) {
+				process.stdout.write(`${line}\n`);
+			}
 		}
+	}
+
+	if (!printPossibleWords) {
+		process.stdout.write(`${chalk.dim('Run with "--words" to print words at each turn.')}\n`);
 	}
 }
