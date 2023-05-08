@@ -1,6 +1,6 @@
 # wordle-bot
 
-No, not [that WordleBot](https://www.nytimes.com/interactive/2022/upshot/wordle-bot.html). This is a bot that tells you what words are available to play in the [Wordle](https://www.nytimes.com/puzzles/wordle) game.
+No, not [that WordleBot](https://www.nytimes.com/interactive/2022/upshot/wordle-bot.html). This is a bot that tells you what words are available to play in the [Wordle](https://www.nytimes.com/games/wordle/index.html) game.
 
 ## Usage
 
