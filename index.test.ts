@@ -38,8 +38,8 @@ test("predicateForTurn single yellow", () => {
 	expect(check("bring")).toEqual({
 		possible: false,
 		reasons: [
+			'"r" is in the word, but not in the second position',
 			'"b" is not in the word',
-			'"r" is not in the second position',
 			'"i" is not in the word',
 			'"n" is not in the word',
 			'"g" is not in the word',
@@ -47,7 +47,10 @@ test("predicateForTurn single yellow", () => {
 	});
 	expect(check("beach")).toEqual({
 		possible: false,
-		reasons: ['"b" is not in the word'],
+		reasons: [
+			`"r" must be in the word, but isn't`,
+			'"b" is not in the word',
+		],
 	});
 	expect(check("start")).toEqual({
 		possible: true,
@@ -73,9 +76,20 @@ test("predicateForTurn multiple green", () => {
 	});
 });
 
-test("predicateForTurn mixed", () => {
+test("createOracleFromTurn mixed", () => {
 	const ask = createOracleFromTurn(["bevel", "🟩🟩⬜️⬜️🟨"]);
 	expect(ask("below")).toEqual({
 		possible: true,
+	});
+});
+
+test("createOracleFromTurn regression", () => {
+	const ask = createOracleFromTurn(["thorn", "🟩⬜️🟨⬜️🟨"]);
+	expect(ask("tummy")).toEqual({
+		possible: false,
+		reasons: [
+			`"o" must be in the word, but isn't`,
+			`"n" must be in the word, but isn't`,
+		],
 	});
 });

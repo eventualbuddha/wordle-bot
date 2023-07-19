@@ -81,51 +81,94 @@ export function createOracleFromTurn([guess, clue]: Turn): (
 		}
 
 		const reasons: string[] = [];
+		const availableChars = candidate.split("");
 
 		const greens = clues.filter(({ clueChar }) => clueChar === GREEN_CHAR);
 		const yellows = clues.filter(({ clueChar }) => clueChar === YELLOW_CHAR);
 		const grays = clues.filter(({ clueChar }) => clueChar === GRAY_CHAR);
 
-		// try to falsify the candidate
-		char: for (const [index, candidateChar] of candidate.split("").entries()) {
-			for (const green of greens) {
-				if (green.index === index && green.guessChar !== candidateChar) {
-					reasons.push(
-						`"${green.guessChar}" must be in the ${ordinal(
-							index + 1,
-						)} position, but found "${candidateChar}"`,
-					);
-					continue char;
-				} else if (green.index === index && green.guessChar === candidateChar) {
-					// green is satisfied, so we can skip the rest of the checks
-					continue char;
-				}
-			}
-
-			for (const yellow of yellows) {
-				if (yellow.index === index && yellow.guessChar === candidateChar) {
-					reasons.push(
-						`"${candidateChar}" is not in the ${ordinal(index + 1)} position`,
-					);
-					continue char;
-				}
-			}
-
-			for (const gray of grays) {
-				if (gray.index === index && gray.guessChar === candidateChar) {
-					reasons.push(`"${candidateChar}" is not in the word`);
-					continue char;
-				}
-
-				if (
-					grays.some((gray) => gray.guessChar === candidateChar) &&
-					yellows.every((yellow) => yellow.guessChar !== candidateChar)
-				) {
-					reasons.push(`"${candidateChar}" is not in the word`);
-					continue char;
-				}
+		for (const green of greens) {
+			if (green.guessChar !== candidate[green.index]) {
+				reasons.push(
+					`"${green.guessChar}" must be in the ${ordinal(
+						green.index + 1,
+					)} position, but found "${candidate[green.index]}"`,
+				);
+			} else {
+				availableChars[green.index] = "";
 			}
 		}
+
+		for (const yellow of yellows) {
+			const availableIndex = availableChars.indexOf(yellow.guessChar);
+			if (!candidate.includes(yellow.guessChar)) {
+				reasons.push(
+					`"${yellow.guessChar}" must be in the word, but isn't`,
+				);
+			} else if (availableIndex < 0) {
+				reasons.push(
+					`"${yellow.guessChar}" (from ${ordinal(yellow.index + 1)}) is in the word, but has already been claimed by another clue`,
+				);
+			} else if (availableIndex === yellow.index) {
+				reasons.push(
+					`"${yellow.guessChar}" is in the word, but not in the ${ordinal(yellow.index + 1)} position`,
+				);
+			} else {
+				availableChars[availableIndex] = "";
+			}
+		}
+
+		for (const gray of grays) {
+			if (availableChars.includes(gray.guessChar)) {
+				reasons.push(
+					`"${gray.guessChar}" is not in the word`,
+				);
+			}
+		}
+
+
+
+		// try to falsify the candidate
+		// char: for (const [index, candidateChar] of candidate.split("").entries()) {
+		// 	console.log({ index, candidateChar, reasons })
+		// 	for (const green of greens) {
+		// 		if (green.index === index && green.guessChar !== candidateChar) {
+		// 			reasons.push(
+		// 				`"${green.guessChar}" must be in the ${ordinal(
+		// 					index + 1,
+		// 				)} position, but found "${candidateChar}"`,
+		// 			);
+		// 			continue char;
+		// 		} else if (green.index === index && green.guessChar === candidateChar) {
+		// 			// green is satisfied, so we can skip the rest of the checks
+		// 			continue char;
+		// 		}
+		// 	}
+
+		// 	for (const yellow of yellows) {
+		// 		if (yellow.index === index && yellow.guessChar === candidateChar) {
+		// 			reasons.push(
+		// 				`"${candidateChar}" is not in the ${ordinal(index + 1)} position`,
+		// 			);
+		// 			continue char;
+		// 		}
+		// 	}
+
+		// 	for (const gray of grays) {
+		// 		if (gray.index === index && gray.guessChar === candidateChar) {
+		// 			reasons.push(`"${candidateChar}" is not in the word`);
+		// 			continue char;
+		// 		}
+
+		// 		if (
+		// 			grays.some((gray) => gray.guessChar === candidateChar) &&
+		// 			yellows.every((yellow) => yellow.guessChar !== candidateChar)
+		// 		) {
+		// 			reasons.push(`"${candidateChar}" is not in the word`);
+		// 			continue char;
+		// 		}
+		// 	}
+		// }
 
 		return reasons.length ? { possible: false, reasons } : { possible: true };
 	};
