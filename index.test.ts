@@ -1,5 +1,22 @@
 import { expect, test } from "bun:test";
-import { createOracleFromTurn } from "./index.js";
+import { Oracle, createOracleFromTurn } from "./index.js";
+
+function createOracleFromHistory(history: string[]): Oracle {
+	const oracles = history.map((turn) => {
+		const [word, feedback] = turn.split(" ");
+		return createOracleFromTurn([word, feedback]);
+	});
+
+	return (word: string) => {
+		for (const oracle of oracles) {
+			const answer = oracle(word);
+			if (!answer.possible) {
+				return answer;
+			}
+		}
+		return { possible: true };
+	}
+}
 
 test("predicateForTurn single green", () => {
 	const guess = createOracleFromTurn(["bring", "🟩⬜️⬜️⬜️⬜️"]);
@@ -90,6 +107,21 @@ test("createOracleFromTurn regression", () => {
 		reasons: [
 			`"o" must be in the word, but isn't`,
 			`"n" must be in the word, but isn't`,
+		],
+	});
+});
+
+test("createOracleFromTurn regression 2", () => {
+	const ask = createOracleFromHistory([
+		'flyer ⬜️⬜️⬜️🟨⬜️',
+		'phone ⬜️⬜️⬜️⬜️🟨',
+		'quest ⬜️⬜️🟨⬜️🟩',
+		'edict 🟩⬜️⬜️🟩🟩',
+	]);
+	expect(ask("eject")).toEqual({
+		possible: false,
+		reasons: [
+			`"e" is in the word, but not in the third position`,
 		],
 	});
 });

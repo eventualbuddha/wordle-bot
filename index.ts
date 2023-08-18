@@ -59,13 +59,13 @@ function clueCharAtIndex(clue: string, charIndex: number) {
 	}
 }
 
+export type Oracle = (candidate: string) => OracleAnswer;
+
 export type OracleAnswer =
 	| { possible: true }
 	| { possible: false; reasons: string[] };
 
-export function createOracleFromTurn([guess, clue]: Turn): (
-	candidate: string,
-) => OracleAnswer {
+export function createOracleFromTurn([guess, clue]: Turn): Oracle {
 	const clues = Array.from(guess, (guessChar, guessIndex) => ({
 		index: guessIndex,
 		guessChar,
@@ -100,7 +100,12 @@ export function createOracleFromTurn([guess, clue]: Turn): (
 		}
 
 		for (const yellow of yellows) {
-			const availableIndex = availableChars.indexOf(yellow.guessChar);
+			const availableIndex =
+				// pick the index of the yellow character if it's still available
+				// so that we can falsify the candidate
+				availableChars[yellow.index] === yellow.guessChar
+					? yellow.index
+					: availableChars.indexOf(yellow.guessChar);
 			if (!candidate.includes(yellow.guessChar)) {
 				reasons.push(
 					`"${yellow.guessChar}" must be in the word, but isn't`,
@@ -125,50 +130,6 @@ export function createOracleFromTurn([guess, clue]: Turn): (
 				);
 			}
 		}
-
-
-
-		// try to falsify the candidate
-		// char: for (const [index, candidateChar] of candidate.split("").entries()) {
-		// 	console.log({ index, candidateChar, reasons })
-		// 	for (const green of greens) {
-		// 		if (green.index === index && green.guessChar !== candidateChar) {
-		// 			reasons.push(
-		// 				`"${green.guessChar}" must be in the ${ordinal(
-		// 					index + 1,
-		// 				)} position, but found "${candidateChar}"`,
-		// 			);
-		// 			continue char;
-		// 		} else if (green.index === index && green.guessChar === candidateChar) {
-		// 			// green is satisfied, so we can skip the rest of the checks
-		// 			continue char;
-		// 		}
-		// 	}
-
-		// 	for (const yellow of yellows) {
-		// 		if (yellow.index === index && yellow.guessChar === candidateChar) {
-		// 			reasons.push(
-		// 				`"${candidateChar}" is not in the ${ordinal(index + 1)} position`,
-		// 			);
-		// 			continue char;
-		// 		}
-		// 	}
-
-		// 	for (const gray of grays) {
-		// 		if (gray.index === index && gray.guessChar === candidateChar) {
-		// 			reasons.push(`"${candidateChar}" is not in the word`);
-		// 			continue char;
-		// 		}
-
-		// 		if (
-		// 			grays.some((gray) => gray.guessChar === candidateChar) &&
-		// 			yellows.every((yellow) => yellow.guessChar !== candidateChar)
-		// 		) {
-		// 			reasons.push(`"${candidateChar}" is not in the word`);
-		// 			continue char;
-		// 		}
-		// 	}
-		// }
 
 		return reasons.length ? { possible: false, reasons } : { possible: true };
 	};
@@ -207,6 +168,10 @@ export async function main(args: readonly string[]) {
 	const turns: Turn[] = [];
 
 	for (const line of lines) {
+		if (line.trim() === "") {
+			continue;
+		}
+
 		const [guess, clue] = line.split(" ");
 		turns.push([guess.toLowerCase(), clue]);
 		if (guess.length !== WORD_LENGTH) {
