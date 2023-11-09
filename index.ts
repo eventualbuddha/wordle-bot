@@ -7,7 +7,14 @@ const WORD_LENGTH = 5;
 const CANDIDATES = words.filter((word) => word.length === WORD_LENGTH);
 const GREEN_CHAR = "🟩";
 const YELLOW_CHAR = "🟨";
-const GRAY_CHAR = "⬜️";
+const GRAY_CHAR = "⬜";
+const EMOJI_VARIATION_SELECTOR = Buffer.of(0xef, 0xb8, 0x8f);
+
+function debugBytes(char: string): string {
+	return Array.from(Buffer.from(char))
+		.map((b) => b.toString(16))
+		.join(",");
+}
 
 type Turn = [string, string];
 
@@ -34,26 +41,24 @@ function ordinal(n: number): string {
 }
 
 function clueCharAtIndex(clue: string, charIndex: number) {
-	let byteIndex = 0;
+	const clueChars = Array.from(clue);
 	for (let i = 0; i < WORD_LENGTH; i++) {
-		if (clue.slice(byteIndex, byteIndex + GREEN_CHAR.length) === GREEN_CHAR) {
+		if (clueChars[i] === GREEN_CHAR) {
 			if (i === charIndex) {
 				return GREEN_CHAR;
 			}
-			byteIndex += GREEN_CHAR.length;
-		} else if (clue.slice(byteIndex, byteIndex + YELLOW_CHAR.length) === YELLOW_CHAR) {
+		} else if (clueChars[i] === YELLOW_CHAR) {
 			if (i === charIndex) {
 				return YELLOW_CHAR;
 			}
-			byteIndex += YELLOW_CHAR.length;
-		} else if (clue.slice(byteIndex, byteIndex + GRAY_CHAR.length) === GRAY_CHAR) {
+		} else if (clueChars[i] === GRAY_CHAR) {
 			if (i === charIndex) {
 				return GRAY_CHAR;
 			}
-			byteIndex += GRAY_CHAR.length;
 		} else {
 			throw new Error(
-				`Invalid clue character: ${clue[i]} (at clue index ${i}, byte index ${byteIndex})`,
+				`Invalid clue character: ${clueChars[i]
+				} (at clue index ${i}, bytes ${debugBytes(clueChars[i])}))}`,
 			);
 		}
 	}
@@ -107,16 +112,18 @@ export function createOracleFromTurn([guess, clue]: Turn): Oracle {
 					? yellow.index
 					: availableChars.indexOf(yellow.guessChar);
 			if (!candidate.includes(yellow.guessChar)) {
-				reasons.push(
-					`"${yellow.guessChar}" must be in the word, but isn't`,
-				);
+				reasons.push(`"${yellow.guessChar}" must be in the word, but isn't`);
 			} else if (availableIndex < 0) {
 				reasons.push(
-					`"${yellow.guessChar}" (from ${ordinal(yellow.index + 1)}) is in the word, but has already been claimed by another clue`,
+					`"${yellow.guessChar}" (from ${ordinal(
+						yellow.index + 1,
+					)}) is in the word, but has already been claimed by another clue`,
 				);
 			} else if (availableIndex === yellow.index) {
 				reasons.push(
-					`"${yellow.guessChar}" is in the word, but not in the ${ordinal(yellow.index + 1)} position`,
+					`"${yellow.guessChar}" is in the word, but not in the ${ordinal(
+						yellow.index + 1,
+					)} position`,
 				);
 			} else {
 				availableChars[availableIndex] = "";
@@ -125,14 +132,18 @@ export function createOracleFromTurn([guess, clue]: Turn): Oracle {
 
 		for (const gray of grays) {
 			if (availableChars.includes(gray.guessChar)) {
-				reasons.push(
-					`"${gray.guessChar}" is not in the word`,
-				);
+				reasons.push(`"${gray.guessChar}" is not in the word`);
 			}
 		}
 
 		return reasons.length ? { possible: false, reasons } : { possible: true };
 	};
+}
+
+function normalizeClue(clue: string): string {
+	return Array.from(clue)
+		.filter((char) => !Buffer.from(char).equals(EMOJI_VARIATION_SELECTOR))
+		.join("");
 }
 
 export async function main(args: readonly string[]) {
@@ -172,7 +183,8 @@ export async function main(args: readonly string[]) {
 			continue;
 		}
 
-		const [guess, clue] = line.split(" ");
+		const [guess, clueRaw] = line.split(" ");
+		const clue = normalizeClue(clueRaw);
 		turns.push([guess.toLowerCase(), clue]);
 		if (guess.length !== WORD_LENGTH) {
 			throw new Error(
@@ -180,9 +192,11 @@ export async function main(args: readonly string[]) {
 			);
 		}
 
-		if (clue.length !== WORD_LENGTH * 2) {
+		const clueChars = Array.from(clue);
+
+		if (clueChars.length !== WORD_LENGTH) {
 			throw new Error(
-				`Invalid clue for guess "${guess}": ${clue} (length ${clue.length})`,
+				`Invalid clue for guess "${guess}": ${clue} (length ${clueChars.length})`,
 			);
 		}
 	}
@@ -194,7 +208,7 @@ export async function main(args: readonly string[]) {
 
 		if (clue === GREEN_CHAR.repeat(WORD_LENGTH)) {
 			process.stdout.write(
-				`${chalk.bold('Solved!')} "${chalk.italic(guess.toUpperCase())}"\n`
+				`${chalk.bold("Solved!")} "${chalk.italic(guess.toUpperCase())}"\n`,
 			);
 			break;
 		}
@@ -228,6 +242,8 @@ export async function main(args: readonly string[]) {
 	}
 
 	if (!printPossibleWords) {
-		process.stdout.write(`${chalk.dim('Run with "--words" to print words at each turn.')}\n`);
+		process.stdout.write(
+			`${chalk.dim('Run with "--words" to print words at each turn.')}\n`,
+		);
 	}
 }
