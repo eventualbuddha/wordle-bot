@@ -1,4 +1,4 @@
 {
 	"editor.formatOnSave": true,
-	"editor.defaultFormatter": "rome.rome",
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
 }

@@ -15,11 +15,11 @@ function createOracleFromHistory(history: string[]): Oracle {
 			}
 		}
 		return { possible: true };
-	}
+	};
 }
 
 test("predicateForTurn single green", () => {
-	const guess = createOracleFromTurn(["bring", "🟩⬜️⬜️⬜️⬜️"]);
+	const guess = createOracleFromTurn(["bring", "🟩⬜⬜⬜⬜"]);
 	expect(guess("")).toEqual({
 		possible: false,
 		reasons: ['"" must be 5 characters long'],
@@ -51,7 +51,7 @@ test("predicateForTurn single green", () => {
 });
 
 test("predicateForTurn single yellow", () => {
-	const check = createOracleFromTurn(["bring", "⬜️🟨⬜️⬜️⬜️"]);
+	const check = createOracleFromTurn(["bring", "⬜🟨⬜⬜⬜"]);
 	expect(check("bring")).toEqual({
 		possible: false,
 		reasons: [
@@ -64,10 +64,7 @@ test("predicateForTurn single yellow", () => {
 	});
 	expect(check("beach")).toEqual({
 		possible: false,
-		reasons: [
-			`"r" must be in the word, but isn't`,
-			'"b" is not in the word',
-		],
+		reasons: [`"r" must be in the word, but isn't`, '"b" is not in the word'],
 	});
 	expect(check("start")).toEqual({
 		possible: true,
@@ -75,7 +72,7 @@ test("predicateForTurn single yellow", () => {
 });
 
 test("predicateForTurn multiple green", () => {
-	const ask = createOracleFromTurn(["beach", "🟩🟩⬜️⬜️⬜️"]);
+	const ask = createOracleFromTurn(["beach", "🟩🟩⬜⬜⬜"]);
 	expect(ask("beach")).toEqual({
 		possible: false,
 		reasons: [
@@ -94,14 +91,14 @@ test("predicateForTurn multiple green", () => {
 });
 
 test("createOracleFromTurn mixed", () => {
-	const ask = createOracleFromTurn(["bevel", "🟩🟩⬜️⬜️🟨"]);
+	const ask = createOracleFromTurn(["bevel", "🟩🟩⬜⬜🟨"]);
 	expect(ask("below")).toEqual({
 		possible: true,
 	});
 });
 
 test("createOracleFromTurn regression", () => {
-	const ask = createOracleFromTurn(["thorn", "🟩⬜️🟨⬜️🟨"]);
+	const ask = createOracleFromTurn(["thorn", "🟩⬜🟨⬜🟨"]);
 	expect(ask("tummy")).toEqual({
 		possible: false,
 		reasons: [
@@ -113,15 +110,13 @@ test("createOracleFromTurn regression", () => {
 
 test("createOracleFromTurn regression 2", () => {
 	const ask = createOracleFromHistory([
-		'flyer ⬜️⬜️⬜️🟨⬜️',
-		'phone ⬜️⬜️⬜️⬜️🟨',
-		'quest ⬜️⬜️🟨⬜️🟩',
-		'edict 🟩⬜️⬜️🟩🟩',
+		"flyer ⬜⬜⬜🟨⬜",
+		"phone ⬜⬜⬜⬜🟨",
+		"quest ⬜⬜🟨⬜🟩",
+		"edict 🟩⬜⬜🟩🟩",
 	]);
 	expect(ask("eject")).toEqual({
 		possible: false,
-		reasons: [
-			`"e" is in the word, but not in the third position`,
-		],
+		reasons: [`"e" is in the word, but not in the third position`],
 	});
 });

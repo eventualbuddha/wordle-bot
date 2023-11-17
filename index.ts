@@ -2,6 +2,7 @@ import words from "an-array-of-english-words";
 import chalk from "chalk";
 import { execSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { debugBytes, integers, ordinal, zip } from "./utils.js";
 
 const WORD_LENGTH = 5;
 const CANDIDATES = words.filter((word) => word.length === WORD_LENGTH);
@@ -10,35 +11,7 @@ const YELLOW_CHAR = "🟨";
 const GRAY_CHAR = "⬜";
 const EMOJI_VARIATION_SELECTOR = Buffer.of(0xef, 0xb8, 0x8f);
 
-function debugBytes(char: string): string {
-	return Array.from(Buffer.from(char))
-		.map((b) => b.toString(16))
-		.join(",");
-}
-
 type Turn = [string, string];
-
-function ordinal(n: number): string {
-	switch (n) {
-		case 1:
-			return "first";
-
-		case 2:
-			return "second";
-
-		case 3:
-			return "third";
-
-		case 4:
-			return "fourth";
-
-		case 5:
-			return "fifth";
-
-		default:
-			throw new Error(`Invalid ordinal: ${n}`);
-	}
-}
 
 function clueCharAtIndex(clue: string, charIndex: number) {
 	const clueChars = Array.from(clue);
@@ -58,7 +31,7 @@ function clueCharAtIndex(clue: string, charIndex: number) {
 		} else {
 			throw new Error(
 				`Invalid clue character: ${clueChars[i]
-				} (at clue index ${i}, bytes ${debugBytes(clueChars[i])}))}`,
+				} (at clue index ${i}, bytes ${debugBytes(clueChars[i])}))}`
 			);
 		}
 	}
@@ -96,8 +69,8 @@ export function createOracleFromTurn([guess, clue]: Turn): Oracle {
 			if (green.guessChar !== candidate[green.index]) {
 				reasons.push(
 					`"${green.guessChar}" must be in the ${ordinal(
-						green.index + 1,
-					)} position, but found "${candidate[green.index]}"`,
+						green.index + 1
+					)} position, but found "${candidate[green.index]}"`
 				);
 			} else {
 				availableChars[green.index] = "";
@@ -116,14 +89,14 @@ export function createOracleFromTurn([guess, clue]: Turn): Oracle {
 			} else if (availableIndex < 0) {
 				reasons.push(
 					`"${yellow.guessChar}" (from ${ordinal(
-						yellow.index + 1,
-					)}) is in the word, but has already been claimed by another clue`,
+						yellow.index + 1
+					)}) is in the word, but has already been claimed by another clue`
 				);
 			} else if (availableIndex === yellow.index) {
 				reasons.push(
 					`"${yellow.guessChar}" is in the word, but not in the ${ordinal(
-						yellow.index + 1,
-					)} position`,
+						yellow.index + 1
+					)} position`
 				);
 			} else {
 				availableChars[availableIndex] = "";
@@ -146,7 +119,12 @@ function normalizeClue(clue: string): string {
 		.join("");
 }
 
-export async function main(args: readonly string[]) {
+interface WordleInput {
+	guessFile: string;
+	printPossibleWords: boolean;
+}
+
+function parseOptions(args: readonly string[]): WordleInput {
 	let printPossibleWords = false;
 	let guessFile: string | undefined;
 
@@ -173,8 +151,13 @@ export async function main(args: readonly string[]) {
 		throw new Error("Missing guess file");
 	}
 
-	const columns = parseInt(execSync("tput cols", { encoding: "utf8" }).trim());
-	const input = await readFile(guessFile, "utf8");
+	return {
+		guessFile,
+		printPossibleWords,
+	};
+}
+
+function parseGuessFile(input: string): Turn[] {
 	const lines = input.split("\n");
 	const turns: Turn[] = [];
 
@@ -188,7 +171,7 @@ export async function main(args: readonly string[]) {
 		turns.push([guess.toLowerCase(), clue]);
 		if (guess.length !== WORD_LENGTH) {
 			throw new Error(
-				`Invalid guess "${guess}": ${guess} (length ${guess.length})`,
+				`Invalid guess "${guess}": ${guess} (length ${guess.length})`
 			);
 		}
 
@@ -196,30 +179,47 @@ export async function main(args: readonly string[]) {
 
 		if (clueChars.length !== WORD_LENGTH) {
 			throw new Error(
-				`Invalid clue for guess "${guess}": ${clue} (length ${clueChars.length})`,
+				`Invalid clue for guess "${guess}": ${clue} (length ${clueChars.length})`
 			);
 		}
 	}
 
-	let candidates = CANDIDATES.slice();
-	for (const [guessIndex, [guess, clue]] of turns.entries()) {
-		const ask = createOracleFromTurn([guess, clue]);
-		candidates = candidates.filter((candidate) => ask(candidate).possible);
+	return turns;
+}
 
+function* getPossibleWordsForTurns(turns: Turn[]): Generator<[Turn, string[]]> {
+	let candidates = CANDIDATES.slice();
+
+	for (const turn of turns) {
+		const ask = createOracleFromTurn(turn);
+		candidates = candidates.filter((candidate) => ask(candidate).possible);
+		yield [turn, candidates];
+	}
+}
+
+export async function main(args: readonly string[]) {
+	const { printPossibleWords, guessFile } = parseOptions(args);
+	const columns = parseInt(execSync("tput cols", { encoding: "utf8" }).trim());
+	const turns = parseGuessFile(await readFile(guessFile, "utf8"));
+
+	for (const [guessIndex, [[guess, clue], candidates]] of zip(
+		integers(),
+		getPossibleWordsForTurns(turns)
+	)) {
 		if (clue === GREEN_CHAR.repeat(WORD_LENGTH)) {
 			process.stdout.write(
-				`${chalk.bold("Solved!")} "${chalk.italic(guess.toUpperCase())}"\n`,
+				`${chalk.bold("Solved!")} "${chalk.italic(guess.toUpperCase())}"\n`
 			);
 			break;
 		}
 
 		process.stdout.write(
 			`${chalk.bold(`Turn #${guessIndex + 2}:`)} after "${chalk.italic(
-				guess.toUpperCase(),
+				guess.toUpperCase()
 			)}" ${clue} ${chalk.dim(
 				`(${candidates.length} ${candidates.length === 1 ? "word" : "words"
-				} left)`,
-			)}\n`,
+				} left)`
+			)}\n`
 		);
 
 		if (printPossibleWords) {
@@ -243,7 +243,7 @@ export async function main(args: readonly string[]) {
 
 	if (!printPossibleWords) {
 		process.stdout.write(
-			`${chalk.dim('Run with "--words" to print words at each turn.')}\n`,
+			`${chalk.dim('Run with "--words" to print words at each turn.')}\n`
 		);
 	}
 }
